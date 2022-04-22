@@ -130,6 +130,9 @@ def add_new_cust():
     submit_btn = Button(root, text = 'Submit', command = lambda: submit_cust(Name.get(), Phone.get()))
     submit_btn.grid(row = 2, column = 0, columnspan = 3, padx= 100)  
 
+    home_btn = Button(root, text = 'Home', command = pick_option)
+    home_btn.grid(row = 3, column = 0, columnspan = 3, padx= 100, ipadx = 140)
+
 def submit_cust(Name, Phone):
     conn = sqlite3.connect('car_rental.db')
     c = conn.cursor()
@@ -194,6 +197,8 @@ def add_new_car():
 
     submit_btn = Button(root, text = 'Submit', command = lambda: submit_car(VIN.get(), Description.get(), Year.get(), Type.get(), Category.get()))
     submit_btn.grid(row = 5, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    home_btn = Button(root, text = 'Home', command = pick_option)
+    home_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
 
 def submit_car(VIN, Description, Year, Type, Category):
     conn = sqlite3.connect('car_rental.db')
