@@ -5,6 +5,7 @@ import sqlite3, csv
 import tkinter.font as font
 import types
 import pandas as pd
+from sympy import expand
 
 #create tkinter window
 win = Tk()
@@ -17,7 +18,7 @@ def reset_root():
     for widgets in root.winfo_children():
           widgets.destroy()
 
-#this function is to create the database schema and imort data from CSV files
+#this function is to create the database schema and import data from CSV files
 def create_db():
 
     #connect to DB and create a table
@@ -70,8 +71,8 @@ def create_db():
     (
         Type INTEGER NOT NULL,
         Category INTEGER NOT NULL,
-        Weekly INTEGER NOT NULL,
-        Daily INTEGER NOT NULL,
+        Weekly REAL NOT NULL,
+        Daily REAL NOT NULL,
 
         CONSTRAINT PK_Rate PRIMARY KEY (Type, Category)
     )
@@ -219,15 +220,85 @@ def submit_car(VIN, Description, Year, Type, Category):
 def add_new_rental():
     reset_root()
 
+    type_label = Label(root, text = 'Type: ' )
+    type_label.grid(row = 0, column=0)
+    Type = ttk.Combobox(root, values = Types)
+    Type.grid(row = 0, column = 1, padx = 20)
+    Type.current()
+
+    category_label = Label(root, text = 'Category: ' )
+    category_label.grid(row = 1, column=0)
+    Category = ttk.Combobox(root, values = Categories)
+    Category.grid(row = 1, column = 1, padx = 20)
+    Category.current()
+
+    start_date_label = Label(root, text = 'start date: ')
+    start_date_label.grid(row =2, column = 0)
+    StartDate = Entry(root, width = 30)
+    StartDate.grid(row=2, column = 1, padx = 20)
+
+    return_date_label = Label(root, text = 'return date: ')
+    return_date_label.grid(row =3, column = 0)
+    ReturnDate = Entry(root, width = 30)
+    ReturnDate.grid(row=3, column = 1, padx = 20)
+
+    submit_btn = Button(root, text = 'Submit', command=lambda: show_available_car(Type.get(), Category.get(), StartDate.get(), ReturnDate.get()))
+    submit_btn.grid(row = 5, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    home_btn = Button(root, text = 'Home', command = pick_option)
+    home_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+
+def show_available_car(Type, Category, StartDate, ReturnDate):
+    conn = sqlite3.connect('car_rental.db')
+    c = conn.cursor()
+    c.execute("""
+    SELECT VehicleId, Description, Year, Weekly, Daily
+    FROM VEHICLE V LEFT NATURAL JOIN RENTAL R NATURAL JOIN RATE
+    WHERE Type = ? AND Category = ?
+    AND V.VehicleID NOT IN (SELECT VehicleID FROM RENTAL
+                            WHERE (StartDate >= ? AND StartDate <= ?)
+
+                            OR (StartDate < ? AND ReturnDate > ?))
+    """, (Type_dict[Type], Category_dict[Category], StartDate, ReturnDate, ReturnDate, StartDate))
+
+    reset_root()
+    available_cars = c.fetchall()
+
+    info = "Type: " + Type + "\n" + "Category: " + Category + "\n" + "Weekly: " + str(available_cars[0][3]) + "\n" + "Daily: " + str(available_cars[0][4]) 
+    info_label = Label(root, text = info)
+    info_label.grid(row = 0, pady = 10)
+    
+    cars_listbox = Listbox(root)
+    cars_listbox.grid(row = 1, padx = 50, pady = 20, ipadx = 50)
+
+    for car in available_cars:
+        cars_listbox.insert(END, car[1] + " | " + car[2])
+
+    select_btn = Button(root, text = "Select", command= lambda: submit_rental(available_cars[cars_listbox.curselection()[0]][0]))
+    select_btn.grid(row = 2, padx = 70)
+
+    select_btn = Button(root, text = "Back", command=add_new_rental)
+    select_btn.grid(row = 3, padx = 70)
+
+    select_btn = Button(root, text = "Home", command=pick_option)
+    select_btn.grid(row = 4, padx = 70)
+
+
+    conn.commit()
+    conn.close()
+
+def submit_rental(VIN):
+    reset_root()
+
     name_label = Label(root, text = 'name: ')
-    name_label.grid(row =0, column = 0)
-    name = Entry(root, width = 30)
-    name.grid(row=0, column = 1, padx = 20)
+    name_label.grid(row = 0, column = 0, padx = (100,0))
+    Name = Entry(root, width = 30)
+    Name.grid(row = 0, column = 1, padx = 20)
     
     phone_label = Label(root, text = 'phone: ')
-    name_label.grid(row =1, column = 0)
-    phone = Entry(root, width = 30)
-    phone.grid(row = 1, column = 1, padx = 20)
+    phone_label.grid(row =1, column = 0, padx = (100,0))
+    Phone = Entry(root, width = 30)
+    Phone.grid(row = 1, column = 1, padx = 20)
+
 
 #this function is to create 3 button: add new customer, new car, and reserve a rental
 def pick_option():
