@@ -1,3 +1,4 @@
+from ast import Or, Return
 from hmac import new
 from tkinter import *
 from tkinter import ttk
@@ -5,7 +6,9 @@ import sqlite3, csv
 import tkinter.font as font
 import types
 import pandas as pd
+from setuptools import Command
 from sympy import expand
+from datetime import date, timedelta
 
 #create tkinter window
 win = Tk()
@@ -107,6 +110,7 @@ def create_db():
     df.to_sql("RATE", conn, if_exists='append', index=False)
     df = pd.read_csv("RENTAL.csv")
     df.to_sql("RENTAL", conn, if_exists='append', index=False)
+    df.loc[(df['PaymentDate'].isnull()), 'PaymentDate'] = 'NULL'
     df = pd.read_csv("VEHICLE.csv")
     df.to_sql("VEHICLE", conn, if_exists='append', index=False)
 
@@ -217,6 +221,11 @@ def submit_car(VIN, Description, Year, Type, Category):
     conn.close()
     add_new_car()
 
+RentalTypes = [ "Daily", "Weekly"]
+RentalType_dict = {"Daily" : 1, "Weekly" : 7}
+pay_options = ["now", "when return"]
+new_cust = ["yes", "no"]
+
 def add_new_rental():
     reset_root()
 
@@ -237,19 +246,36 @@ def add_new_rental():
     StartDate = Entry(root, width = 30)
     StartDate.grid(row=2, column = 1, padx = 20)
 
-    return_date_label = Label(root, text = 'return date: ')
-    return_date_label.grid(row =3, column = 0)
-    ReturnDate = Entry(root, width = 30)
-    ReturnDate.grid(row=3, column = 1, padx = 20)
+    RentalType_label = Label(root, text = 'Rental Type: ' )
+    RentalType_label.grid(row = 3, column=0)
+    RentalType = ttk.Combobox(root, values = RentalTypes)
+    RentalType.grid(row = 3, column = 1, padx = 20)
+    RentalType.current()
 
-    submit_btn = Button(root, text = 'Submit', command=lambda: show_available_car(Type.get(), Category.get(), StartDate.get(), ReturnDate.get()))
-    submit_btn.grid(row = 5, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    Qty_label = Label(root, text = 'Quantity: ')
+    Qty_label.grid(row = 4, column=0)
+    Qty = Entry(root, width = 30)
+    Qty.grid(row=4, column = 1, padx = 20)
+
+    PaymentDate_label = Label(root, text = 'Payment Date: ' )
+    PaymentDate_label.grid(row = 5, column=0)
+    PaymentDate = ttk.Combobox(root, values = pay_options)
+    PaymentDate.grid(row = 5, column = 1, padx = 20)
+    PaymentDate.current()
+
+    submit_btn = Button(root, text = 'Submit', command=lambda: show_available_car(Type.get(), Category.get(), StartDate.get(), RentalType.get(), Qty.get(), PaymentDate.get()))
+    submit_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
     home_btn = Button(root, text = 'Home', command = pick_option)
-    home_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    home_btn.grid(row = 7, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
 
-def show_available_car(Type, Category, StartDate, ReturnDate):
+def show_available_car(Type, Category, StartDate, RentalType, Qty, PaymentDate):
     conn = sqlite3.connect('car_rental.db')
     c = conn.cursor()
+
+    Days = int(RentalType_dict[RentalType] * int(Qty))
+    OrderDate = date.today()
+    ReturnDate = date.today() + timedelta(days=Days)
+
     c.execute("""
     SELECT VehicleId, Description, Year, Weekly, Daily
     FROM VEHICLE V LEFT NATURAL JOIN RENTAL R NATURAL JOIN RATE
@@ -273,31 +299,85 @@ def show_available_car(Type, Category, StartDate, ReturnDate):
     for car in available_cars:
         cars_listbox.insert(END, car[1] + " | " + car[2])
 
-    select_btn = Button(root, text = "Select", command= lambda: submit_rental(available_cars[cars_listbox.curselection()[0]][0]))
+    Weekly = available_cars[0][3]
+    Daily = available_cars[0][4]
+    TotalAmount = 0
+    if(RentalType == "Daily"): TotalAmount = int(Daily) * int(Qty)
+    else: TotalAmount = int(Weekly) * int(Qty)
+
+    select_btn = Button(root, text = "Select", command= lambda: submit_rental(available_cars[cars_listbox.curselection()[0]][0], StartDate, OrderDate, RentalType, Qty, ReturnDate, TotalAmount, PaymentDate))
     select_btn.grid(row = 2, padx = 70)
 
-    select_btn = Button(root, text = "Back", command=add_new_rental)
-    select_btn.grid(row = 3, padx = 70)
+    back_btn = Button(root, text = "Back", command=add_new_rental)
+    back_btn.grid(row = 3, padx = 70)
 
-    select_btn = Button(root, text = "Home", command=pick_option)
-    select_btn.grid(row = 4, padx = 70)
-
-
+    home_btn = Button(root, text = "Home", command=pick_option)
+    home_btn.grid(row = 4, padx = 70)
     conn.commit()
     conn.close()
 
-def submit_rental(VIN):
+
+def submit_rental(VIN, StartDate, OrderDate, RentalType, Qty, ReturnDate, TotalAmount, PaymentDate):
     reset_root()
 
     name_label = Label(root, text = 'name: ')
-    name_label.grid(row = 0, column = 0, padx = (100,0))
+    name_label.grid(row = 0, column = 0, padx = 20)
     Name = Entry(root, width = 30)
-    Name.grid(row = 0, column = 1, padx = 20)
+    Name.grid(row = 0, column = 1, padx = 10)
     
     phone_label = Label(root, text = 'phone: ')
-    phone_label.grid(row =1, column = 0, padx = (100,0))
+    phone_label.grid(row =1, column = 0, padx = 20)
     Phone = Entry(root, width = 30)
-    Phone.grid(row = 1, column = 1, padx = 20)
+    Phone.grid(row = 1, column = 1, padx = 10)
+
+    newCust_label = Label(root, text = 'new customer: ' )
+    newCust_label.grid(row = 2, column=0)
+    NewCust = ttk.Combobox(root, values = new_cust)
+    NewCust.grid(row = 2, column = 1, padx = 10)
+    NewCust.current()
+
+    
+    submit_btn = Button(root, text = "Submit", command= lambda: add_rental_to_db(VIN, Name.get(), Phone.get(), NewCust.get(), StartDate, OrderDate, RentalType, Qty, ReturnDate, TotalAmount, PaymentDate))
+    submit_btn.grid(row = 3, column= 1)
+
+    cancel_btn = Button(root, text = "Cancel", command=add_new_rental)
+    cancel_btn.grid(row = 4, column= 1)
+
+    home_btn = Button(root, text = "Home", command=pick_option)
+    home_btn.grid(row = 5, column= 1)
+
+def add_rental_to_db(VIN, Name, Phone, NewCust, StartDate, OrderDate, RentalType, Qty, ReturnDate, TotalAmount, PaymentDate):
+    reset_root()
+
+    conn = sqlite3.connect('car_rental.db')
+    c = conn.cursor()
+
+    if(NewCust == "yes"):
+        c.execute("""INSERT INTO CUSTOMER(Name, Phone) VALUES (:Name, :Phone )""",
+        {
+            'Name' : Name,
+            'Phone': Phone
+        }) 
+    c.execute("SELECT CustId FROM CUSTOMER WHERE Name = ? AND Phone = ?", (Name, Phone))
+    Custid = c.fetchall()[0][0]
+    if(PaymentDate == 'now'): PaymentDate = date.today()
+    else: PaymentDate = 'NULL'
+
+    c.execute("""INSERT INTO RENTAL VALUES(:CustId, :VehicleId, :StartDate, :OrderDate, :RentalType, :Qty, :ReturnDate, :TotalAmount, :PaymentDate)""", 
+    {
+        'CustId' : Custid,
+        'VehicleId': VIN,
+        'StartDate': StartDate,
+        'OrderDate': OrderDate,
+        'RentalType': RentalType_dict[RentalType],
+        'Qty' : Qty,
+        'ReturnDate' : ReturnDate,
+        'TotalAmount': TotalAmount,
+        'PaymentDate': PaymentDate
+    })
+
+    conn.commit()
+    conn.close()
 
 
 #this function is to create 3 button: add new customer, new car, and reserve a rental
