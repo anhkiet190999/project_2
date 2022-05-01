@@ -108,9 +108,8 @@ def create_db():
     df.to_sql("CUSTOMER", conn, if_exists='append', index=False)
     df = pd.read_csv("RATE.csv")
     df.to_sql("RATE", conn, if_exists='append', index=False)
-    df = pd.read_csv("RENTAL.csv")
+    df = pd.read_csv("RENTAL.csv", na_filter=False)
     df.to_sql("RENTAL", conn, if_exists='append', index=False)
-    df.loc[(df['PaymentDate'].isnull()), 'PaymentDate'] = 'NULL'
     df = pd.read_csv("VEHICLE.csv")
     df.to_sql("VEHICLE", conn, if_exists='append', index=False)
 
@@ -126,14 +125,14 @@ def add_new_cust():
     name_label.grid(row = 0, column = 0, padx = (100,0))
     Name = Entry(root, width = 30)
     Name.grid(row = 0, column = 1, padx = 20)
-    
+
     phone_label = Label(root, text = 'phone: ')
     phone_label.grid(row =1, column = 0, padx = (100,0))
     Phone = Entry(root, width = 30)
     Phone.grid(row = 1, column = 1, padx = 20)
 
     submit_btn = Button(root, text = 'Submit', command = lambda: submit_cust(Name.get(), Phone.get()))
-    submit_btn.grid(row = 2, column = 0, columnspan = 3, padx= 100)  
+    submit_btn.grid(row = 2, column = 0, columnspan = 3, padx= 100)
 
     home_btn = Button(root, text = 'Home', command = pick_option)
     home_btn.grid(row = 3, column = 0, columnspan = 3, padx= 100, ipadx = 140)
@@ -177,7 +176,7 @@ def add_new_car():
     VIN_label.grid(row =0, column = 0)
     VIN = Entry(root, width = 30)
     VIN.grid(row=0, column = 1, padx = 20)
-    
+
     description_label = Label(root, text = 'Name: ')
     description_label.grid(row =1, column = 0)
     Description = Entry(root, width = 30)
@@ -201,9 +200,9 @@ def add_new_car():
     Category.current()
 
     submit_btn = Button(root, text = 'Submit', command = lambda: submit_car(VIN.get(), Description.get(), Year.get(), Type.get(), Category.get()))
-    submit_btn.grid(row = 5, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    submit_btn.grid(row = 5, column = 0, columnspan = 3, padx= 100, ipadx = 140)
     home_btn = Button(root, text = 'Home', command = pick_option)
-    home_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    home_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)
 
 def submit_car(VIN, Description, Year, Type, Category):
     conn = sqlite3.connect('car_rental.db')
@@ -264,9 +263,9 @@ def add_new_rental():
     PaymentDate.current()
 
     submit_btn = Button(root, text = 'Submit', command=lambda: show_available_car(Type.get(), Category.get(), StartDate.get(), RentalType.get(), Qty.get(), PaymentDate.get()))
-    submit_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    submit_btn.grid(row = 6, column = 0, columnspan = 3, padx= 100, ipadx = 140)
     home_btn = Button(root, text = 'Home', command = pick_option)
-    home_btn.grid(row = 7, column = 0, columnspan = 3, padx= 100, ipadx = 140)  
+    home_btn.grid(row = 7, column = 0, columnspan = 3, padx= 100, ipadx = 140)
 
 def show_available_car(Type, Category, StartDate, RentalType, Qty, PaymentDate):
     conn = sqlite3.connect('car_rental.db')
@@ -289,10 +288,10 @@ def show_available_car(Type, Category, StartDate, RentalType, Qty, PaymentDate):
     reset_root()
     available_cars = c.fetchall()
 
-    info = "Type: " + Type + "\n" + "Category: " + Category + "\n" + "Weekly: " + str(available_cars[0][3]) + "\n" + "Daily: " + str(available_cars[0][4]) 
+    info = "Type: " + Type + "\n" + "Category: " + Category + "\n" + "Weekly: " + str(available_cars[0][3]) + "\n" + "Daily: " + str(available_cars[0][4])
     info_label = Label(root, text = info)
     info_label.grid(row = 0, pady = 10)
-    
+
     cars_listbox = Listbox(root)
     cars_listbox.grid(row = 1, padx = 50, pady = 20, ipadx = 50)
 
@@ -324,7 +323,7 @@ def submit_rental(VIN, StartDate, OrderDate, RentalType, Qty, ReturnDate, TotalA
     name_label.grid(row = 0, column = 0, padx = 20)
     Name = Entry(root, width = 30)
     Name.grid(row = 0, column = 1, padx = 10)
-    
+
     phone_label = Label(root, text = 'phone: ')
     phone_label.grid(row =1, column = 0, padx = 20)
     Phone = Entry(root, width = 30)
@@ -336,7 +335,7 @@ def submit_rental(VIN, StartDate, OrderDate, RentalType, Qty, ReturnDate, TotalA
     NewCust.grid(row = 2, column = 1, padx = 10)
     NewCust.current()
 
-    
+
     submit_btn = Button(root, text = "Submit", command= lambda: add_rental_to_db(VIN, Name.get(), Phone.get(), NewCust.get(), StartDate, OrderDate, RentalType, Qty, ReturnDate, TotalAmount, PaymentDate))
     submit_btn.grid(row = 3, column= 1)
 
@@ -357,13 +356,13 @@ def add_rental_to_db(VIN, Name, Phone, NewCust, StartDate, OrderDate, RentalType
         {
             'Name' : Name,
             'Phone': Phone
-        }) 
+        })
     c.execute("SELECT CustId FROM CUSTOMER WHERE Name = ? AND Phone = ?", (Name, Phone))
     Custid = c.fetchall()[0][0]
     if(PaymentDate == 'now'): PaymentDate = date.today()
     else: PaymentDate = 'NULL'
 
-    c.execute("""INSERT INTO RENTAL VALUES(:CustId, :VehicleId, :StartDate, :OrderDate, :RentalType, :Qty, :ReturnDate, :TotalAmount, :PaymentDate)""", 
+    c.execute("""INSERT INTO RENTAL VALUES(:CustId, :VehicleId, :StartDate, :OrderDate, :RentalType, :Qty, :ReturnDate, :TotalAmount, :PaymentDate)""",
     {
         'CustId' : Custid,
         'VehicleId': VIN,
@@ -383,7 +382,7 @@ def add_rental_to_db(VIN, Name, Phone, NewCust, StartDate, OrderDate, RentalType
 #this function is to create 3 button: add new customer, new car, and reserve a rental
 def pick_option():
     reset_root()
-    
+
     myFont = font.Font(family='Helvetica', size=30, weight='bold')
     welcome_font = font.Font(family='Comic Sans MS', size = 20)
 
