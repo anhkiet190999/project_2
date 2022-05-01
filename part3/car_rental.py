@@ -8,7 +8,7 @@ import types
 import pandas as pd
 from setuptools import Command
 from sympy import expand
-from datetime import date, timedelta
+from datetime import date, timedelta, datetime
 
 #create tkinter window
 win = Tk()
@@ -273,7 +273,8 @@ def show_available_car(Type, Category, StartDate, RentalType, Qty, PaymentDate):
 
     Days = int(RentalType_dict[RentalType] * int(Qty))
     OrderDate = date.today()
-    ReturnDate = date.today() + timedelta(days=Days)
+    StartDateFormatted = date.fromisoformat(StartDate)
+    ReturnDate = StartDateFormatted + timedelta(days=Days)
 
     c.execute("""
     SELECT VehicleId, Description, Year, Weekly, Daily
@@ -362,7 +363,7 @@ def add_rental_to_db(VIN, Name, Phone, NewCust, StartDate, OrderDate, RentalType
     if(PaymentDate == 'now'): PaymentDate = date.today()
     else: PaymentDate = 'NULL'
 
-    c.execute("""INSERT INTO RENTAL VALUES(:CustId, :VehicleId, :StartDate, :OrderDate, :RentalType, :Qty, :ReturnDate, :TotalAmount, :PaymentDate)""",
+    c.execute("""INSERT INTO RENTAL VALUES(:CustId, :VehicleId, :StartDate, :OrderDate, :RentalType, :Qty, :ReturnDate, :TotalAmount, :PaymentDate, 0)""",
     {
         'CustId' : Custid,
         'VehicleId': VIN,
@@ -377,7 +378,107 @@ def add_rental_to_db(VIN, Name, Phone, NewCust, StartDate, OrderDate, RentalType
 
     conn.commit()
     conn.close()
+    pick_option()
 
+def return_car():
+    reset_root()
+
+    customer_name_label = Label(root, text = 'Customer Name: ')
+    customer_name_label.grid(row = 0, column=0)
+    CustomerName = Entry(root, width = 30)
+    CustomerName.grid(row=0, column = 1, padx = 20)
+
+    return_date_label = Label(root, text = 'Return date: ')
+    return_date_label.grid(row =1, column = 0)
+    ReturnDate = Entry(root, width = 30)
+    ReturnDate.grid(row=1, column = 1, padx = 20)
+
+    vehicle_id_label = Label(root, text = 'Vehicle ID: ')
+    vehicle_id_label.grid(row = 2, column=0)
+    VehicleID = Entry(root, width = 30)
+    VehicleID.grid(row=2, column = 1, padx = 20)
+
+    submit_btn = Button(root, text = 'Submit', command=lambda: show_rental( CustomerName.get(), VehicleID.get(), ReturnDate.get()))
+    submit_btn.grid(row = 3, column = 0, columnspan = 3, padx= 100, ipadx = 140)
+    home_btn = Button(root, text = 'Home', command = pick_option)
+    home_btn.grid(row = 4, column = 0, columnspan = 3, padx= 100, ipadx = 140)
+
+def show_rental(CustName, VID, ReturnDate):
+    reset_root()
+
+    conn = sqlite3.connect('car_rental.db')
+    c = conn.cursor()
+
+    c.execute("""SELECT CustID FROM Customer WHERE Name = ?""", (CustName,))
+    CustID = c.fetchall()[0][0]
+
+    c.execute("""
+    SELECT TotalAmount, PaymentDate
+    FROM Rental
+    WHERE CustID = ? AND VehicleID = ? AND ReturnDate = ?""", (
+    CustID, VID, ReturnDate))
+
+    rental_info = c.fetchall()
+    if (rental_info[0][1] == 'NULL'):
+        payment_due = rental_info[0][0]
+    else:
+        payment_due = 0
+
+    info = "Payment Due: " + str(payment_due)
+    info_label = Label(root, text = info)
+    info_label.grid(row = 0, pady = 10)
+
+    back_btn = Button(root, text = "Back", command=return_car)
+    back_btn.grid(row = 1, column = 0, columnspan = 3, padx= 100)
+    #
+    return_btn = Button(root, text = "Return Vehicle", command=lambda:return_vehicle(CustID, VID, ReturnDate))
+    return_btn.grid(row = 2, column = 0, columnspan = 3, padx= 100)
+
+    conn.commit()
+    conn.close()
+
+def return_vehicle(CustID, VID, ReturnDate):
+    reset_root()
+
+    conn = sqlite3.connect('car_rental.db')
+    c = conn.cursor()
+
+    c.execute("""
+    SELECT PaymentDate
+    FROM Rental
+    WHERE CustID = ? AND VehicleID = ? AND ReturnDate = ?""", (
+    CustID, VID, ReturnDate))
+
+    rental_info = c.fetchall()
+    if (rental_info[0][0] == 'NULL'):
+        payment_date = date.today()
+    else:
+        payment_date = rental_info[0][0]
+
+    c.execute("""
+        UPDATE RENTAL
+        SET Returned = 1, PaymentDate = ?
+        WHERE CustID = ? AND VehicleID = ? AND ReturnDate = ?""", (payment_date, CustID, VID, ReturnDate))
+
+    conn.commit()
+    conn.close()
+    pick_option()
+
+def task1():
+    conn = sqlite3.connect('car_rental.db')
+    c = conn.cursor()
+
+    c.execute("""ALTER TABLE RENTAL ADD Returned INT""")
+    c.execute("""
+        UPDATE RENTAL
+        SET Returned = CASE PaymentDate
+        WHEN 'NULL' THEN 0
+        ELSE 1
+        END
+    """)
+
+    conn.commit()
+    conn.close()
 
 #this function is to create 3 button: add new customer, new car, and reserve a rental
 def pick_option():
@@ -402,8 +503,12 @@ def pick_option():
     add_rental_btn['font'] = myFont
     add_rental_btn.grid(row = 3, column = 0, columnspan = 3, padx= 100)
 
+    return_car_btn = Button(root, text = 'Return Vehicle', command = return_car)
+    return_car_btn['font'] = myFont
+    return_car_btn.grid(row = 4, column = 0, columnspan = 3, padx= 100)
 
 #execute my window, main function
 create_db()
+task1()
 pick_option()
 win.mainloop()
