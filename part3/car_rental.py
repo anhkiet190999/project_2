@@ -429,10 +429,10 @@ def show_rental(CustName, VID, ReturnDate):
     info_label.grid(row = 0, pady = 10)
 
     back_btn = Button(root, text = "Back", command=return_car)
-    back_btn.grid(row = 1, column = 0, columnspan = 3, padx= 100)
+    back_btn.grid(row = 1, column = 0, columnspan = 3, padx = 100)
     #
     return_btn = Button(root, text = "Return Vehicle", command=lambda:return_vehicle(CustID, VID, ReturnDate))
-    return_btn.grid(row = 2, column = 0, columnspan = 3, padx= 100)
+    return_btn.grid(row = 2, column = 0, columnspan = 3, padx = 100)
 
     conn.commit()
     conn.close()
@@ -458,13 +458,110 @@ def return_vehicle(CustID, VID, ReturnDate):
     c.execute("""
         UPDATE RENTAL
         SET Returned = 1, PaymentDate = ?
-        WHERE CustID = ? AND VehicleID = ? AND ReturnDate = ?""", (payment_date, CustID, VID, ReturnDate))
+        WHERE CustID = ? AND VehicleID = ? AND ReturnDate = ?""",
+    (payment_date, CustID, VID, ReturnDate))
 
     conn.commit()
     conn.close()
     pick_option()
 
-def task1():
+def view_balance():
+    reset_root()
+
+    customer_name_label = Label(root, text = 'Customer Name: ')
+    customer_name_label.grid(row = 0, column=0)
+    CustomerName = Entry(root, width = 30)
+    CustomerName.grid(row=0, column = 1, padx = 20)
+
+    customer_id_label = Label(root, text = 'Customer ID: ')
+    customer_id_label.grid(row =1, column = 0)
+    CustomerID = Entry(root, width = 30)
+    CustomerID.grid(row=1, column = 1, padx = 20)
+
+    view_btn = Button(root, text = 'View', command=lambda: show_balance( CustomerName.get(), CustomerID.get()))
+    view_btn.grid(row = 2, column = 0, columnspan = 3, padx= 100, ipadx = 140)
+
+    home_btn = Button(root, text = 'Home', command = pick_option)
+    home_btn.grid(row = 3, column = 0, columnspan = 3, padx= 100, ipadx = 140)
+
+def show_balance(name, id):
+    reset_root()
+
+    conn = sqlite3.connect('car_rental.db')
+    c = conn.cursor()
+
+    if len(id) > 0:
+        c.execute("""
+            SELECT CustID, Name, CASE WHEN RentalBalance is NULL THEN 0 ELSE SUM(RentalBalance) END AS TotalBalance
+            FROM Customer LEFT OUTER JOIN vRentalInfo on CustID = CustomerID
+            WHERE CustID = ?
+            GROUP BY CustID
+            ORDER BY SUM(RentalBalance) DESC""",
+        (id,))
+    elif len(name) > 0:
+        c.execute("""
+            SELECT CustID, Name, CASE WHEN RentalBalance is NULL THEN 0 ELSE SUM(RentalBalance) END AS TotalBalance
+            FROM Customer LEFT OUTER JOIN vRentalInfo on CustID = CustomerID
+            WHERE Name LIKE ?
+            GROUP BY CustID
+            ORDER BY SUM(RentalBalance) DESC""",
+        ("%"+name+"%",))
+    else:
+        c.execute("""
+            SELECT CustID, Name, CASE WHEN RentalBalance is NULL THEN 0 ELSE SUM(RentalBalance) END AS TotalBalance
+            FROM Customer LEFT OUTER JOIN vRentalInfo on CustID = CustomerID
+            GROUP BY CustID
+            ORDER BY SUM(RentalBalance) DESC""")
+
+    rental_info = c.fetchall()
+    display_info = "CustomerID | CustomerName | Balance Due\n"
+    for rental in rental_info:
+        display_info += str(rental[0]) + " | " + rental[1] + " | " + str(rental[2]) + '\n'
+
+    info_label = Label(root, text = display_info)
+    info_label.grid(row = 0, pady = 10, padx = 100)
+
+    home_btn = Button(root, text = 'Home', command = pick_option)
+    home_btn.grid(row = 4, column = 0, columnspan = 3, padx= 100)
+
+
+def create_view():
+    conn = sqlite3.connect('car_rental.db')
+    c = conn.cursor()
+
+    c.execute("""
+        DROP VIEW IF EXISTS vRentalInfo
+    """)
+
+    c.execute("""
+        CREATE VIEW vRentalInfo AS
+        SELECT OrderDate, StartDate, ReturnDate, RentalType * Qty as TotalDays, VehicleID as VIN,
+            Description as Vehicle,
+            CASE Type
+                WHEN 1 THEN 'Compact'
+                WHEN 2 THEN 'Medium'
+                WHEN 3 THEN 'Large'
+                WHEN 4 THEN 'SUV'
+                WHEN 5 THEN 'Truck'
+                WHEN 6 THEN 'VAN'
+            END Type,
+            CASE Category
+                WHEN 0 THEN 'Basic'
+                WHEN 1 THEN 'Luxury'
+            END Category,
+            CustID as CustomerID, Name as CustomerName, TotalAmount as OrderAmount,
+            CASE PaymentDate
+                WHEN 'NULL' THEN TotalAmount
+                ELSE 0
+            END RentalBalance
+        FROM CUSTOMER NATURAL JOIN RENTAL NATURAL JOIN VEHICLE NATURAL JOIN RATE
+        ORDER BY StartDate
+    """)
+
+    conn.commit()
+    conn.close()
+
+def create_returned_col():
     conn = sqlite3.connect('car_rental.db')
     c = conn.cursor()
 
@@ -507,8 +604,13 @@ def pick_option():
     return_car_btn['font'] = myFont
     return_car_btn.grid(row = 4, column = 0, columnspan = 3, padx= 100)
 
+    view_balance_btn = Button(root, text = 'View Balance', command = view_balance)
+    view_balance_btn['font'] = myFont
+    view_balance_btn.grid(row = 5, column = 0, columnspan = 3, padx= 100)
+
 #execute my window, main function
 create_db()
-task1()
+create_returned_col()
+create_view()
 pick_option()
 win.mainloop()
