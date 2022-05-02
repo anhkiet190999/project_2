@@ -497,11 +497,15 @@ def Search_vehicle():
     txtDescription.grid(row = 1, column = 1)
     
     ##ListBox in result
-    scrollbar = Scrollbar(DataFrameRight)
-    scrollbar.grid(row = 0, column = 1, sticky = 'ns')
-    CarList = Listbox(DataFrameRight, width = 50, height = 20, font = ('arial', 15), yscrollcommand = scrollbar.set)
+    yscrollbar = Scrollbar(DataFrameRight)
+    yscrollbar.grid(row = 0, column = 1, sticky = 'ns')
+    xscrollbar = Scrollbar(DataFrameRight, orient = HORIZONTAL)
+    xscrollbar.grid(row = 1, column = 0, sticky = 'we')
+    CarList = Listbox(DataFrameRight, width = 50, height = 20, font = ('arial', 15), 
+                      yscrollcommand = yscrollbar.set, xscrollcommand = xscrollbar.set)
     CarList.grid(row = 0, column = 0, padx = 8)
-    scrollbar.config(command = CarList.yview)
+    yscrollbar.config(command = CarList.yview)
+    xscrollbar.config(command = CarList.xview)
     
     ##Buttons
     home_btn = Button(ButtonFrame, text = "Home", font = ('arial', 20, 'bold'), 
@@ -554,13 +558,15 @@ def search(VIN, Description):
 def display_cars(VIN, Description, CarList):
     rows = search(VIN, Description)
     CarList.delete(0, END)
-    CarList.insert(END, "VIN" + "".ljust(34) + "Description" + "".ljust(10) + "Average_Daily_Price")
-    for row in rows:
-        if row[2] == "$0.00":
-            CarList.insert(END, row[0]+ "".ljust(5) + row[1] + "".ljust(10) + "Non-Applicable")
-        else:
-            CarList.insert(END, row[0]+ "".ljust(5) + row[1] + "".ljust(5) + row[2])
-
+    if len(rows) == 0:
+        CarList.insert(END, "No results were found.")
+    else:
+        CarList.insert(END, "VIN" + "".ljust(34) + "Description" + "".ljust(10) + "Average_Daily_Price")
+        for row in rows:
+            if row[2] == "$0.00":
+                CarList.insert(END, row[0]+ "".ljust(5) + row[1] + "".ljust(10) + "Non-Applicable")
+            else:
+                CarList.insert(END, row[0]+ "".ljust(5) + row[1] + "".ljust(5) + row[2])
 def view_balance():
     reset_root()
 
