@@ -469,50 +469,57 @@ def return_vehicle(CustID, VID, ReturnDate):
 ##We only want the vehicle and rental tables
 def Search_vehicle():
     reset_root()
-    
+
     ##Frames
     ButtonFrame = Frame(root, bd = 2, width = 1000, height = 70, padx = 18, pady = 10, bg = "Ghost White", relief = RIDGE)
     ButtonFrame.pack(side = BOTTOM)
-    
+
     DataFrame = Frame(root, bd = 1, width = 950, height = 500, padx = 18, pady = 10, relief = RIDGE, bg = "light blue")
     DataFrame.pack(side = TOP)
-    
+
     DataFrameLEFT = LabelFrame(DataFrame, bd = 1, width = 700, height = 600, padx = 20, relief = RIDGE, bg = "Ghost White",
-                              font = ('arial', 20, 'bold'), text = "Car's Description\n")
+                              font = ('Helvetica', 20, 'bold'), text = "Car's Description\n")
     DataFrameLEFT.pack(side = LEFT)
-    
-    DataFrameRight = LabelFrame(DataFrame, bd = 1, width = 800, height = 900, padx = 20, relief = RIDGE, bg = "Ghost White",
-                              font = ('arial', 20, 'bold'), text = "Results: \n")
+
+    newWindow = Toplevel(root)
+    newWindow.title("New Window")
+    newWindow.geometry("700x500")
+
+    DataFrame = Frame(newWindow, bd = 1, width = 800, height = 500, padx = 18, pady = 10, relief = RIDGE, bg = "light blue")
+    DataFrame.pack(side = TOP)
+
+    DataFrameRight = LabelFrame(DataFrame, bd = 1, width = 800, height = 500, padx = 20, relief = RIDGE, bg = "Ghost White",
+                              font = ('Courier', 20, 'bold'), text = "Results: \n")
     DataFrameRight.pack(side = RIGHT)
-    
-    ##Entries
-    VehicleID = Label(DataFrameLEFT, font = ('arial', 15, 'bold'), text = 'VIN: ', padx = 2, pady = 2, bg = 'Ghost White')
-    VehicleID.grid(row = 0, column = 0, sticky = W)
-    txtVIN = Entry(DataFrameLEFT, font = ('Courier', 15), width = 40)
-    txtVIN.grid(row = 0, column = 1)
-    
-    DescriptionLabel = Label(DataFrameLEFT, font = ('arial', 15, 'bold'), text = 'Description: ', padx = 2, pady = 2, bg = 'Ghost White')
-    DescriptionLabel.grid(row = 1, column = 0, sticky = W)
-    txtDescription = Entry(DataFrameLEFT, font = ('Courier', 15), width = 40)
-    txtDescription.grid(row = 1, column = 1)
-    
+
     ##ListBox in result
     yscrollbar = Scrollbar(DataFrameRight)
     yscrollbar.grid(row = 0, column = 1, sticky = 'ns')
     xscrollbar = Scrollbar(DataFrameRight, orient = HORIZONTAL)
     xscrollbar.grid(row = 1, column = 0, sticky = 'we')
-    CarList = Listbox(DataFrameRight, width = 50, height = 20, font = ('arial', 15), 
+    CarList = Listbox(DataFrameRight, width = 80, height = 30, font = ('Courier', 15),
                       yscrollcommand = yscrollbar.set, xscrollcommand = xscrollbar.set)
     CarList.grid(row = 0, column = 0, padx = 8)
     yscrollbar.config(command = CarList.yview)
     xscrollbar.config(command = CarList.xview)
-    
+
+    ##Entries
+    VehicleID = Label(DataFrameLEFT, font = ('Courier', 15, 'bold'), text = 'VIN: ', padx = 2, pady = 2, bg = 'Ghost White')
+    VehicleID.grid(row = 0, column = 0, sticky = W)
+    txtVIN = Entry(DataFrameLEFT, font = ('Courier', 15), width = 40)
+    txtVIN.grid(row = 0, column = 1)
+
+    DescriptionLabel = Label(DataFrameLEFT, font = ('Courier', 15, 'bold'), text = 'Description: ', padx = 2, pady = 2, bg = 'Ghost White')
+    DescriptionLabel.grid(row = 1, column = 0, sticky = W)
+    txtDescription = Entry(DataFrameLEFT, font = ('Courier', 15), width = 40)
+    txtDescription.grid(row = 1, column = 1)
+
     ##Buttons
-    home_btn = Button(ButtonFrame, text = "Home", font = ('arial', 20, 'bold'), 
+    home_btn = Button(ButtonFrame, text = "Home", font = ('arial', 20, 'bold'),
                       width = 10, height = 2, bd = 4, command = pick_option)
     home_btn.grid(row = 0, column = 0)
-    view_btn = Button(ButtonFrame, text = "View", font = ('arial', 20, 'bold'), 
-                      width = 10, height = 2, bd = 4, command = lambda: display_cars(txtVIN.get(), 
+    view_btn = Button(ButtonFrame, text = "View", font = ('arial', 20, 'bold'),
+                      width = 10, height = 2, bd = 4, command = lambda: display_cars(txtVIN.get(),
                                                                         txtDescription.get(), CarList))
     view_btn.grid(row = 0, column = 1)
 
@@ -520,29 +527,29 @@ def search(VIN, Description):
     conn = sqlite3.connect('car_rental.db')
     c = conn.cursor()
     c.execute("""Create view RentandVehicle As select * from vehicle v left join rental r on v.VehicleID = r.VehicleID""")
-    
+
     if (len(VIN) == 0 and len(Description) == 0):
-        c.execute("""select distinct VehicleID, Description, 
+        c.execute("""select distinct VehicleID, Description,
                             printf("$%.2f", max(TotalAmount / Cast (RentalType * Qty As Float))) As Average_Daily_Price
                             from RentandVehicle
                             group by VehicleID
                             Order by max(TotalAmount / Cast (RentalType * Qty As Float))""")
     elif (len(VIN) !=0 and len(Description) == 0):
-        c.execute("""select distinct VehicleID, Description, 
+        c.execute("""select distinct VehicleID, Description,
                             printf("$%.2f", max(TotalAmount / Cast (RentalType * Qty As Float))) As Average_Daily_Price
                             from RentandVehicle
                             where VehicleID = ?
                             group by VehicleID
                             Order by max(TotalAmount / Cast (RentalType * Qty As Float))""", (VIN,))
     elif (len(VIN) ==0 and len(Description) != 0):
-        c.execute("""select distinct VehicleID, Description, 
+        c.execute("""select distinct VehicleID, Description,
                             printf("$%.2f", max(TotalAmount / Cast (RentalType * Qty As Float))) As Average_Daily_Price
                             from RentandVehicle
                             where Description LIKE '%'||?||'%'
                             group by VehicleID
                             Order by max(TotalAmount / Cast (RentalType * Qty As Float))""", (Description,))
     elif (len(VIN) !=0 and len(Description) != 0):
-        c.execute("""select distinct VehicleID, Description, 
+        c.execute("""select distinct VehicleID, Description,
                             printf("$%.2f", max(TotalAmount / Cast (RentalType * Qty As Float))) As Average_Daily_Price
                             from RentandVehicle
                             where VehicleID = ? and Description LIKE '%'||?||'%'
@@ -561,12 +568,15 @@ def display_cars(VIN, Description, CarList):
     if len(rows) == 0:
         CarList.insert(END, "No results were found.")
     else:
-        CarList.insert(END, "VIN" + "".ljust(34) + "Description" + "".ljust(10) + "Average_Daily_Price")
+        header = '{0: <18}'.format('VIN') + '{0: <20}'.format('Description') + '{0: <20}'.format('Average_Daily_Price')
+        CarList.insert(END, header)
         for row in rows:
             if row[2] == "$0.00":
-                CarList.insert(END, row[0]+ "".ljust(5) + row[1] + "".ljust(10) + "Non-Applicable")
+                header = '{0: <18}'.format(row[0]) + '{0: <20}'.format(row[1]) + '{0: <20}'.format('Non-Applicable')
+                CarList.insert(END, header)
             else:
-                CarList.insert(END, row[0]+ "".ljust(5) + row[1] + "".ljust(5) + row[2])
+                header = '{0: <18}'.format(row[0]) + '{0: <20}'.format(row[1]) + '{0: <20}'.format(row[2])
+                CarList.insert(END, header)
 def view_balance():
     reset_root()
 
